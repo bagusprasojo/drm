@@ -102,3 +102,9 @@ MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "200"))
 
 DRM_MASTER_KEY_B64 = os.getenv("DRM_MASTER_KEY_B64", "")
 DRM_RSA_PRIVATE_KEY_PEM = os.getenv("DRM_RSA_PRIVATE_KEY_PEM", "")
+
+# Production security behind reverse proxy
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
