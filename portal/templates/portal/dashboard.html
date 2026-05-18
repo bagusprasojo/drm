@@ -1,0 +1,101 @@
+{% extends "portal/base.html" %}
+{% load portal_extras %}
+{% block content %}
+<div class="grid-2">
+  <section class="card">
+    <h2>Upload Ebook (Admin)</h2>
+    <form method="post" action="{% url 'portal-upload' %}" enctype="multipart/form-data" class="grid">{% csrf_token %}
+      {{ upload_form.as_p }}
+      <button type="submit">Upload + Process</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Issue License (Admin)</h2>
+    <form method="post" action="{% url 'portal-license-issue' %}" class="grid">{% csrf_token %}
+      {{ license_form.as_p }}
+      <button type="submit">Issue</button>
+    </form>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Register Device (Admin)</h2>
+  <form method="post" action="{% url 'portal-device-register' %}" class="grid">{% csrf_token %}
+    {{ device_form.as_p }}
+    <button type="submit">Register Device</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Ebooks</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Pages</th><th>Package</th></tr></thead>
+    <tbody>
+      {% for e in ebooks %}
+      <tr>
+        <td>{{ e.id }}</td>
+        <td>{{ e.title }}</td>
+        <td><span class="badge {{ e.status|status_badge }}">{{ e.status }}</span></td>
+        <td>{{ e.total_pages }}</td>
+        <td>{{ e.package_path|default:"-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Devices</h2>
+  <table>
+    <thead><tr><th>ID</th><th>User</th><th>Hash</th><th>Name</th><th>Status</th><th>Aksi</th></tr></thead>
+    <tbody>
+      {% for d in devices %}
+      <tr>
+        <td>{{ d.id }}</td><td>{{ d.user.email }}</td><td>{{ d.device_hash|truncatechars:20 }}</td><td>{{ d.device_name }}</td>
+        <td>{% if d.revoked %}revoked{% else %}active{% endif %}</td>
+        <td>
+          {% if not d.revoked %}
+          <form method="post" action="{% url 'portal-device-revoke' d.id %}">{% csrf_token %}<button type="submit">Revoke</button></form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Licenses</h2>
+  <table>
+    <thead><tr><th>ID</th><th>User</th><th>Ebook</th><th>Device</th><th>Status</th><th>Aksi</th></tr></thead>
+    <tbody>
+      {% for l in licenses %}
+      <tr>
+        <td>{{ l.id }}</td><td>{{ l.user.email }}</td><td>{{ l.ebook.title }}</td><td>{{ l.device.device_name }}</td>
+        <td>{% if l.revoked %}revoked{% else %}active{% endif %}</td>
+        <td>
+          {% if not l.revoked %}
+          <form method="post" action="{% url 'portal-license-revoke' l.id %}">{% csrf_token %}<button type="submit">Revoke</button></form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Download Logs</h2>
+  <table>
+    <thead><tr><th>Time</th><th>User</th><th>Ebook</th><th>Device</th><th>IP</th></tr></thead>
+    <tbody>
+      {% for row in downloads %}
+      <tr>
+        <td>{{ row.downloaded_at }}</td><td>{{ row.user.email }}</td><td>{{ row.ebook.title }}</td><td>{{ row.device.device_name }}</td><td>{{ row.ip_address }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

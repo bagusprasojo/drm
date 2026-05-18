@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DRM Backend Portal</title>
+  <link rel="stylesheet" href="/static/portal/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">DRM Backend Portal</div>
+    {% if request.user.is_authenticated %}
+    <form method="post" action="{% url 'portal-logout' %}">{% csrf_token %}<button type="submit">Logout</button></form>
+    {% endif %}
+  </header>
+  <main class="container">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="msg {{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
