@@ -107,8 +107,20 @@ def _licensed_package_response(ebook: Ebook, license_obj: EbookLicense, device: 
 
 
 class EbookViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    queryset = Ebook.objects.all().order_by("-created_at")
     serializer_class = EbookSerializer
+
+    def get_queryset(self):
+        if self.action in {"upload"}:
+            return Ebook.objects.all().order_by("-created_at")
+        return (
+            Ebook.objects.filter(
+                licenses__user=self.request.user,
+                licenses__revoked=False,
+                status=Ebook.ProcessingStatus.READY,
+            )
+            .distinct()
+            .order_by("-created_at")
+        )
 
     @action(detail=False, methods=["post"], url_path="upload", parser_classes=[MultiPartParser])
     def upload(self, request):

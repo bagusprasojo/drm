@@ -106,6 +106,14 @@ def process_ebook_task(self, ebook_id: int) -> None:
             metadata_bin = json.dumps(metadata, separators=(",", ":")).encode("utf-8")
             write_entry(zf, "metadata/book.json", metadata_bin)
 
+            toc = []
+            for level, title, page_no in doc.get_toc(simple=True):
+                if title and page_no > 0:
+                    toc.append({"level": level, "title": title, "page": page_no})
+            if toc:
+                toc_bin = json.dumps(toc, separators=(",", ":")).encode("utf-8")
+                write_entry(zf, "metadata/toc.json", toc_bin)
+
             manifest_payload = {
                 "version": 2,
                 "package_format_version": 2,
