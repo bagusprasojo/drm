@@ -6,7 +6,7 @@ from .models import Device
 class DeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Device
-        fields = ["id", "device_hash", "device_name", "os_version", "app_version", "revoked", "created_at"]
+        fields = ["id", "device_hash", "device_name", "os_version", "app_version", "public_key_pem", "revoked", "created_at"]
         read_only_fields = ["id", "revoked", "created_at"]
 
 

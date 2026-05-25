@@ -8,6 +8,7 @@ class Device(models.Model):
     device_name = models.CharField(max_length=255)
     os_version = models.CharField(max_length=255)
     app_version = models.CharField(max_length=64)
+    public_key_pem = models.TextField(blank=True)
     revoked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -1,7 +1,11 @@
 from pathlib import Path
+import io
+import json
+import zipfile
 
 from django.conf import settings
 from django.http import FileResponse, HttpResponse, StreamingHttpResponse
+from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -10,6 +14,13 @@ from rest_framework.response import Response
 from devices.models import Device
 from downloads.models import DownloadLog
 from licenses.models import EbookLicense
+from drm.crypto_utils import (
+    decrypt_key_from_storage,
+    load_master_key_from_env,
+    rsa_sign,
+    wrap_content_key_for_device,
+    wrap_content_key_for_public_key,
+)
 from .models import Ebook
 from .serializers import DownloadRequestSerializer, EbookSerializer, EbookUploadSerializer
 from .tasks import process_ebook_task
@@ -52,6 +63,46 @@ def _http_range_response(request, file_path: Path):
     response["Accept-Ranges"] = "bytes"
     response["Content-Length"] = str(chunk_size)
     response["Content-Disposition"] = f'attachment; filename="{file_path.name}"'
+    return response
+
+
+def _licensed_package_response(ebook: Ebook, license_obj: EbookLicense, device: Device) -> HttpResponse:
+    master_key = load_master_key_from_env(settings.DRM_MASTER_KEY_B64)
+    content_key = decrypt_key_from_storage(master_key, ebook.encrypted_content_key_b64)
+    if device.public_key_pem:
+        key_wrap_alg = "RSA-OAEP-SHA256-device-public-key"
+        wrapped_content_key = wrap_content_key_for_public_key(content_key, device.public_key_pem)
+    else:
+        key_wrap_alg = "AES-256-GCM-SHA256(device_hash)"
+        wrapped_content_key = wrap_content_key_for_device(content_key, device.device_hash)
+
+    license_payload = {
+        "version": 1,
+        "ebook_id": ebook.id,
+        "user_id": license_obj.user_id,
+        "device_id": device.id,
+        "device_hash": device.device_hash,
+        "issued_at": license_obj.issued_at.isoformat(),
+        "generated_at": timezone.now().isoformat(),
+        "key_wrap_alg": key_wrap_alg,
+        "wrapped_content_key": wrapped_content_key,
+    }
+    license_bin = json.dumps(license_payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    license_sig = rsa_sign(settings.DRM_RSA_PRIVATE_KEY_PEM, license_bin)
+
+    package_file = Path(ebook.package_path)
+    out = io.BytesIO()
+    with zipfile.ZipFile(package_file, "r") as src, zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as dst:
+        for entry in src.infolist():
+            if entry.filename in {"license.json", "license.sig"}:
+                continue
+            dst.writestr(entry, src.read(entry.filename))
+        dst.writestr("license.json", license_bin)
+        dst.writestr("license.sig", license_sig)
+
+    response = HttpResponse(out.getvalue(), content_type="application/octet-stream")
+    response["Content-Disposition"] = f'attachment; filename="{package_file.name}"'
+    response["Cache-Control"] = "no-store"
     return response
 
 
@@ -117,4 +168,6 @@ class EbookViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.Ge
         package_file = Path(ebook.package_path)
         if not package_file.exists():
             return Response({"detail": "Package missing"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if ebook.package_format_version >= 2:
+            return _licensed_package_response(ebook, license_obj, device)
         return _http_range_response(request, package_file)

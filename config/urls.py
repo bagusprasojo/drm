@@ -1,3 +1,4 @@
+from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -18,6 +19,7 @@ device_register = DeviceViewSet.as_view({"post": "create"})
 device_revoke = DeviceViewSet.as_view({"post": "revoke"})
 
 urlpatterns = [
+    path("admin/", admin.site.urls),
     path("portal/", include("portal.urls")),
     path("api/auth/login", LoginView.as_view(), name="login"),
     path("api/auth/logout", LogoutView.as_view(), name="logout"),
